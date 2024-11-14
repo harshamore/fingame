@@ -13,6 +13,8 @@ if 'game_state' not in st.session_state:
     st.session_state.competitor_decisions = []
     st.session_state.payoffs = []
     st.session_state.total_payoff = 0
+    st.session_state.num_competitors = 4  # Total competitors
+    st.session_state.competitor_strategies = []
 
 # Game Introduction
 if st.session_state.game_state == 'intro':
@@ -27,15 +29,32 @@ if st.session_state.game_state == 'intro':
     - **Nash Equilibrium**
     - **Dominant Strategies**
     - **Payoff Matrix**
+    - **Strategic Thinking**
 
     **Payoff Structure:**
 
-    - **If you enter and total entrants are less than or equal to 2**: Profit of ₹100.
-    - **If you enter and total entrants exceed 2**: Loss of ₹50.
-    - **If you stay out**: Profit of ₹0.
+    - **If you enter and total entrants are ≤ 2**: Profit of **$100**.
+    - **If you enter and total entrants exceed 2**: Loss of **$50**.
+    - **If you stay out**: Profit of **$0**.
 
     """)
+
+    # Display Competitor Strategies
+    st.header("Competitor Strategies")
+    st.write("The competitors in this game use different strategies:")
+    strategies = [
+        'Aggressive Entry: Always enter the market.',
+        'Cautious Entry: Enter only if conditions are favorable.',
+        'Randomized Strategy: Enter based on probability.',
+        'Tit-for-Tat: Mimic your previous action.',
+        'Adaptive Strategy: Adjust based on past outcomes.'
+    ]
+    for idx, strategy in enumerate(strategies, 1):
+        st.write(f"**Competitor {idx}**: {strategy}")
+
     if st.button("Start Game"):
+        # Assign strategies to competitors
+        st.session_state.competitor_strategies = random.sample(strategies, st.session_state.num_competitors)
         st.session_state.game_state = 'play'
 
 # Game Play
@@ -50,19 +69,40 @@ elif st.session_state.game_state == 'play':
         key=f'player_choice_round_{st.session_state.round}'
     )
 
+    # Submit decision and proceed to next round automatically
     if st.button("Submit Decision"):
         # Record player's decision
         st.session_state.player_decisions.append(player_choice)
 
-        # Simulate competitor decisions
-        # For realism, we can have multiple competitors with different strategies
+        # Simulate competitor decisions based on their strategies
         competitor_choices = []
-        num_competitors = 2  # Number of competitors
-
-        for i in range(num_competitors):
-            strategy = random.choice(['Aggressive', 'Random'])
-            if strategy == 'Aggressive':
+        for idx in range(st.session_state.num_competitors):
+            strategy = st.session_state.competitor_strategies[idx]
+            if 'Aggressive' in strategy:
                 competitor_choice = 'Enter'
+            elif 'Cautious' in strategy:
+                # Cautious entry if previous round had few entrants
+                if st.session_state.round == 1 or st.session_state.payoffs[-1] >= 0:
+                    competitor_choice = 'Enter'
+                else:
+                    competitor_choice = 'Stay Out'
+            elif 'Randomized' in strategy:
+                competitor_choice = random.choice(['Enter', 'Stay Out'])
+            elif 'Tit-for-Tat' in strategy:
+                if st.session_state.round == 1:
+                    competitor_choice = 'Enter'
+                else:
+                    competitor_choice = st.session_state.player_decisions[-2]
+            elif 'Adaptive' in strategy:
+                if st.session_state.round == 1:
+                    competitor_choice = random.choice(['Enter', 'Stay Out'])
+                else:
+                    # If last payoff was positive, repeat action; else, switch
+                    last_payoff = st.session_state.payoffs[-1]
+                    if last_payoff >= 0:
+                        competitor_choice = st.session_state.competitor_decisions[-1][idx]
+                    else:
+                        competitor_choice = 'Enter' if st.session_state.competitor_decisions[-1][idx] == 'Stay Out' else 'Stay Out'
             else:
                 competitor_choice = random.choice(['Enter', 'Stay Out'])
             competitor_choices.append(competitor_choice)
@@ -78,10 +118,10 @@ elif st.session_state.game_state == 'play':
         if player_choice == 'Enter':
             if total_entrants <= 2:
                 payoff = 100
-                st.success("You entered the market and made a profit of ₹100.")
+                st.success("You entered the market and made a profit of **$100**.")
             else:
                 payoff = -50
-                st.warning("Too many firms entered. You incurred a loss of ₹50.")
+                st.warning("Too many firms entered. You incurred a loss of **$50**.")
         else:
             payoff = 0
             st.info("You stayed out of the market.")
@@ -97,29 +137,36 @@ elif st.session_state.game_state == 'play':
         # Move to next round or end game
         if st.session_state.round < st.session_state.max_rounds:
             st.session_state.round += 1
+            # Reset radio button for the next round
+            st.experimental_rerun()
         else:
             st.session_state.game_state = 'results'
+            st.experimental_rerun()
 
 # Results Phase
 elif st.session_state.game_state == 'results':
     st.title("📈 Game Over - Results")
-    st.write("**Your Total Payoff:** ₹{}".format(st.session_state.total_payoff))
+    st.write("**Your Total Payoff:** ${}".format(st.session_state.total_payoff))
 
     # Display detailed results
     st.subheader("Round-by-Round Summary")
     for i in range(st.session_state.max_rounds):
         st.write(f"### Round {i+1}")
         st.write(f"- **Your Decision:** {st.session_state.player_decisions[i]}")
-        st.write(f"- **Competitors' Decisions:** {st.session_state.competitor_decisions[i]}")
-        st.write(f"- **Your Payoff:** ₹{st.session_state.payoffs[i]}")
+        competitor_decisions = st.session_state.competitor_decisions[i]
+        competitor_strategies = st.session_state.competitor_strategies
+        st.write("**Competitors' Decisions and Strategies:**")
+        for idx in range(st.session_state.num_competitors):
+            st.write(f"Competitor {idx+1} ({competitor_strategies[idx].split(':')[0]}): {competitor_decisions[idx]}")
+        st.write(f"- **Your Payoff:** ${st.session_state.payoffs[i]}")
         st.write("---")
 
     # Educational Insights
     st.subheader("📚 Game Theory Insights")
     st.write("""
-    - **Nash Equilibrium:** In this game, the Nash Equilibrium occurs when firms randomize their strategies to keep competitors indifferent.
-    - **Dominant Strategy:** No dominant strategy exists here because your best choice depends on competitors' actions.
-    - **Strategic Thinking:** Anticipate competitors' strategies to inform your decisions.
+    - **Nash Equilibrium:** In this game, Nash Equilibrium occurs when firms randomize their strategies, making others indifferent.
+    - **Dominant Strategy:** No dominant strategy exists; the best action depends on competitors.
+    - **Strategic Thinking:** Anticipate competitors' strategies and adapt your decisions.
     """)
 
     # Reset the game
@@ -130,3 +177,5 @@ elif st.session_state.game_state == 'results':
         st.session_state.competitor_decisions = []
         st.session_state.payoffs = []
         st.session_state.total_payoff = 0
+        st.session_state.competitor_strategies = []
+        st.experimental_rerun()
