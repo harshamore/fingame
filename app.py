@@ -3,6 +3,18 @@ import pandas as pd
 import random
 import time
 
+# Set up session state to avoid duplicate keys
+if "game_data" not in st.session_state:
+    st.session_state.game_data = {
+        "cash": 100000,
+        "inventory": 500,
+        "accounts_receivable": 0,
+        "accounts_payable": 0,
+        "inventory_period": 30,   # Default values in days
+        "collection_period": 30,
+        "payment_period": 30
+    }
+
 # Initialize Game State
 st.set_page_config(page_title="Business Balance Simulator", layout="wide")
 
@@ -20,28 +32,23 @@ with st.sidebar:
 
 # Game variables initialization
 if start_game:
-    game_data = {
-        "cash": 100000,
-        "inventory": 500,
-        "accounts_receivable": 0,
-        "accounts_payable": 0,
-        "inventory_period": 30,   # Default values in days
-        "collection_period": 30,
-        "payment_period": 30
-    }
-    start_time = time.time()
+    st.session_state.start_time = time.time()
 
-    # Main game loop
-    while time.time() - start_time < 900:  # 15 minutes
+# Main game loop
+if "start_time" in st.session_state:
+    game_data = st.session_state.game_data
+    elapsed_time = time.time() - st.session_state.start_time
+
+    while elapsed_time < 900:  # 15 minutes
         # Display current state
         cash_balance.metric("Cash Balance", f"₹{game_data['cash']}")
         inventory_status.metric("Inventory", f"{game_data['inventory']} units")
         accounts_receivable.metric("Accounts Receivable", f"₹{game_data['accounts_receivable']}")
         accounts_payable.metric("Accounts Payable", f"₹{game_data['accounts_payable']}")
 
-        # Player decision inputs
+        # Player decision inputs with unique keys
         with st.expander("Manage Inventory"):
-            purchase_amount = st.number_input("Order Inventory (units)", min_value=0, step=10, key="purchase_inventory")
+            purchase_amount = st.number_input("Order Inventory (units)", min_value=0, step=10, key="purchase_inventory_unique")
             # Process inventory purchase
             if purchase_amount > 0:
                 cost = purchase_amount * 100  # Assume ₹100 per unit cost
@@ -49,12 +56,12 @@ if start_game:
                 game_data['inventory'] += purchase_amount
 
         with st.expander("Set Customer Credit Terms"):
-            credit_days = st.selectbox("Credit Terms (Days)", [15, 30, 45], key="credit_terms")
+            credit_days = st.selectbox("Credit Terms (Days)", [15, 30, 45], key="credit_terms_unique")
             # Adjust collection period
             game_data['collection_period'] = credit_days
 
         with st.expander("Manage Supplier Payments"):
-            payment_action = st.selectbox("Supplier Payment", ["Pay Now", "Pay on Due Date", "Delay Payment"], key="supplier_payment")
+            payment_action = st.selectbox("Supplier Payment", ["Pay Now", "Pay on Due Date", "Delay Payment"], key="supplier_payment_unique")
             # Adjust payment period
             if payment_action == "Pay Now":
                 game_data['payment_period'] -= 5  # Benefit of early payment
@@ -78,8 +85,9 @@ if start_game:
         st.write(f"Payment Period: {game_data['payment_period']} days")
         st.write(f"Score: {game_data['cash']}")
 
-        # Game refresh every second
-        time.sleep(1)
+        # Update elapsed time for game loop
+        elapsed_time = time.time() - st.session_state.start_time
+        time.sleep(1)  # Refresh loop every second
 
     # End Game
     st.write("**Game Over!** Your final score is calculated based on your cash flow, inventory, and payment performance.")
