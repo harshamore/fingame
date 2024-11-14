@@ -41,7 +41,7 @@ if start_game:
 
         # Player decision inputs
         with st.expander("Manage Inventory"):
-            purchase_amount = st.number_input("Order Inventory (units)", min_value=0, step=10)
+            purchase_amount = st.number_input("Order Inventory (units)", min_value=0, step=10, key="purchase_inventory")
             # Process inventory purchase
             if purchase_amount > 0:
                 cost = purchase_amount * 100  # Assume ₹100 per unit cost
@@ -49,12 +49,12 @@ if start_game:
                 game_data['inventory'] += purchase_amount
 
         with st.expander("Set Customer Credit Terms"):
-            credit_days = st.selectbox("Credit Terms (Days)", [15, 30, 45])
+            credit_days = st.selectbox("Credit Terms (Days)", [15, 30, 45], key="credit_terms")
             # Adjust collection period
             game_data['collection_period'] = credit_days
 
         with st.expander("Manage Supplier Payments"):
-            payment_action = st.selectbox("Supplier Payment", ["Pay Now", "Pay on Due Date", "Delay Payment"])
+            payment_action = st.selectbox("Supplier Payment", ["Pay Now", "Pay on Due Date", "Delay Payment"], key="supplier_payment")
             # Adjust payment period
             if payment_action == "Pay Now":
                 game_data['payment_period'] -= 5  # Benefit of early payment
