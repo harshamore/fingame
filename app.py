@@ -8,12 +8,12 @@ st.set_page_config(page_title="Market Entry Simulator", layout="centered")
 if 'game_state' not in st.session_state:
     st.session_state.game_state = 'intro'
     st.session_state.round = 1
-    st.session_state.max_rounds = 5
+    st.session_state.max_rounds = 3  # Updated to 3 rounds
     st.session_state.player_decisions = []
     st.session_state.competitor_decisions = []
     st.session_state.payoffs = []
     st.session_state.total_payoff = 0
-    st.session_state.num_competitors = 4  # Total competitors
+    st.session_state.num_competitors = 4  # Total competitors (5 firms including player)
     st.session_state.competitor_strategies = []
     st.session_state.show_results = False
 
@@ -45,8 +45,8 @@ if st.session_state.game_state == 'intro':
 
     **Payoff Structure:**
 
-    - **If you enter and total entrants are ≤ 2**: Profit of **$100**.
-    - **If you enter and total entrants exceed 2**: Loss of **$50**.
+    - **If you enter and total entrants are ≤ 3**: Profit of **$100**.
+    - **If you enter and total entrants exceed 3**: Loss of **$50**.
     - **If you stay out**: Profit of **$0**.
 
     """)
@@ -58,8 +58,7 @@ if st.session_state.game_state == 'intro':
         'Aggressive Entry: Always enter the market.',
         'Cautious Entry: Enter only if conditions are favorable.',
         'Randomized Strategy: Enter based on probability.',
-        'Tit-for-Tat: Mimic your previous action.',
-        'Adaptive Strategy: Adjust based on past outcomes.'
+        'Tit-for-Tat: Mimic your previous action.'
     ]
     for idx, strategy in enumerate(strategies_list, 1):
         st.write(f"**Competitor {idx}**: {strategy}")
@@ -77,8 +76,8 @@ elif st.session_state.game_state == 'play':
     # Show Payoff Structure
     st.subheader("Payoff Structure")
     st.write("""
-    - **If you enter and total entrants are ≤ 2**: Profit of **$100**.
-    - **If you enter and total entrants exceed 2**: Loss of **$50**.
+    - **If you enter and total entrants are ≤ 3**: Profit of **$100**.
+    - **If you enter and total entrants exceed 3**: Loss of **$50**.
     - **If you stay out**: Profit of **$0**.
     """)
 
@@ -113,22 +112,13 @@ elif st.session_state.game_state == 'play':
                     else:
                         competitor_choice = 'Stay Out'
                 elif 'Randomized' in strategy:
-                    competitor_choice = random.choice(['Enter', 'Stay Out'])
+                    # Randomized with a lower probability to enter
+                    competitor_choice = random.choices(['Enter', 'Stay Out'], weights=[0.4, 0.6])[0]
                 elif 'Tit-for-Tat' in strategy:
-                    if st.session_state.round == 1:
-                        competitor_choice = 'Enter'
-                    else:
-                        competitor_choice = st.session_state.player_decisions[-2]
-                elif 'Adaptive' in strategy:
                     if st.session_state.round == 1:
                         competitor_choice = random.choice(['Enter', 'Stay Out'])
                     else:
-                        # If last payoff was positive, repeat action; else, switch
-                        last_payoff = st.session_state.payoffs[-1]
-                        if last_payoff >= 0:
-                            competitor_choice = st.session_state.competitor_decisions[-1][idx]
-                        else:
-                            competitor_choice = 'Enter' if st.session_state.competitor_decisions[-1][idx] == 'Stay Out' else 'Stay Out'
+                        competitor_choice = st.session_state.player_decisions[-2]
                 else:
                     competitor_choice = random.choice(['Enter', 'Stay Out'])
                 competitor_choices.append(competitor_choice)
@@ -142,7 +132,7 @@ elif st.session_state.game_state == 'play':
 
             # Determine payoff
             if player_choice == 'Enter':
-                if total_entrants <= 2:
+                if total_entrants <= 3:
                     payoff = 100
                     st.success("You entered the market and made a profit of **$100**.")
                 else:
@@ -205,18 +195,18 @@ elif st.session_state.game_state == 'results':
         st.write(f"Competitors chose: {', '.join(competitor_decisions)}.")
 
         if player_decision == 'Enter':
-            if total_entrants <= 2:
-                st.write("Since total entrants were ≤ 2, you made a profit of $100.")
+            if total_entrants <= 3:
+                st.write("Since total entrants were ≤ 3, you made a profit of $100.")
                 st.write("Your decision to enter was profitable.")
             else:
-                st.write("Since total entrants exceeded 2, you incurred a loss of $50.")
+                st.write("Since total entrants exceeded 3, you incurred a loss of $50.")
                 st.write("Market over-saturation led to losses for entrants.")
         else:
             st.write("You stayed out of the market and neither gained nor lost money.")
-            if total_entrants > 2:
+            if total_entrants > 3:
                 st.write("Your decision to stay out was wise, as entrants incurred losses due to over-saturation.")
             else:
-                st.write("You missed an opportunity for profit, as total entrants were ≤ 2.")
+                st.write("You missed an opportunity for profit, as total entrants were ≤ 3.")
 
         # Explain competitors' strategies and their impact
         for idx in range(st.session_state.num_competitors):
