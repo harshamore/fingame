@@ -2,181 +2,131 @@ import streamlit as st
 import random
 
 # Set up the page configuration
-st.set_page_config(page_title="Salary Negotiation Simulator", layout="centered")
+st.set_page_config(page_title="Market Entry Simulator", layout="centered")
 
 # Initialize session state
 if 'game_state' not in st.session_state:
-    st.session_state.game_state = 'setup'
+    st.session_state.game_state = 'intro'
     st.session_state.round = 1
-    st.session_state.max_rounds = 3
-    st.session_state.user_role = None
-    st.session_state.user_min_salary = 0
-    st.session_state.user_max_budget = 0
-    st.session_state.app_min_salary = 0
-    st.session_state.app_max_budget = 0
-    st.session_state.user_proposals = []
-    st.session_state.app_proposals = []
-    st.session_state.agreement_reached = False
-    st.session_state.agreed_salary = 0
-    st.session_state.payoffs = {'You': 0, 'Application': 0}
+    st.session_state.max_rounds = 5
+    st.session_state.player_decisions = []
+    st.session_state.competitor_decisions = []
+    st.session_state.payoffs = []
+    st.session_state.total_payoff = 0
 
-# Game Setup
-if st.session_state.game_state == 'setup':
-    st.title("💼 Salary Negotiation Simulator")
-    st.write("Negotiate a salary with the application acting as your opponent.")
+# Game Introduction
+if st.session_state.game_state == 'intro':
+    st.title("🏪 Market Entry Simulator")
+    st.write("""
+    **Welcome to the Market Entry Simulator!**
 
-    st.header("Select Your Role")
-    st.session_state.user_role = st.radio(
-        "Choose your role:",
-        ('Employer', 'Employee'),
-        key='user_role_selection'
-    )
+    You are a firm considering entering a new market. The profitability depends on how many firms enter. Make strategic decisions to maximize your total payoff over multiple rounds.
 
-    if st.session_state.user_role == 'Employer':
-        st.subheader("Your Role: Employer")
-        st.session_state.user_max_budget = st.number_input(
-            "Enter your maximum budget for the position (₹):",
-            min_value=50000,
-            max_value=500000,
-            step=5000,
-            value=150000,
-            key='user_max_budget_input'
-        )
-        # Application sets its minimum acceptable salary
-        st.session_state.app_min_salary = random.randint(50000, st.session_state.user_max_budget)
-        st.write("You will negotiate with an Employee (the application).")
-    else:
-        st.subheader("Your Role: Employee")
-        st.session_state.user_min_salary = st.number_input(
-            "Enter your minimum acceptable salary (₹):",
-            min_value=50000,
-            max_value=500000,
-            step=5000,
-            value=100000,
-            key='user_min_salary_input'
-        )
-        # Application sets its maximum budget
-        st.session_state.app_max_budget = random.randint(st.session_state.user_min_salary, 500000)
-        st.write("You will negotiate with an Employer (the application).")
+    **Game Concepts:**
 
-    if st.button("Start Negotiation"):
-        st.session_state.game_state = 'negotiation'
+    - **Nash Equilibrium**
+    - **Dominant Strategies**
+    - **Payoff Matrix**
 
-# Negotiation Phase
-elif st.session_state.game_state == 'negotiation':
-    st.title("🤝 Salary Negotiation Simulator")
+    **Payoff Structure:**
+
+    - **If you enter and total entrants are less than or equal to 2**: Profit of ₹100.
+    - **If you enter and total entrants exceed 2**: Loss of ₹50.
+    - **If you stay out**: Profit of ₹0.
+
+    """)
+    if st.button("Start Game"):
+        st.session_state.game_state = 'play'
+
+# Game Play
+elif st.session_state.game_state == 'play':
+    st.title("🏪 Market Entry Simulator")
     st.header(f"Round {st.session_state.round} of {st.session_state.max_rounds}")
 
-    # User and Application make proposals
-    if st.session_state.user_role == 'Employer':
-        # User is Employer
-        st.subheader("Your Turn: Employer's Offer")
-        user_offer = st.number_input(
-            "Enter your salary offer to the Employee (₹):",
-            min_value=st.session_state.app_min_salary,
-            max_value=st.session_state.user_max_budget,
-            step=5000,
-            key=f'user_offer_round_{st.session_state.round}'
-        )
+    st.write("**Make your decision:** Do you want to enter the market this round?")
+    player_choice = st.radio(
+        "Choose your action:",
+        ('Enter', 'Stay Out'),
+        key=f'player_choice_round_{st.session_state.round}'
+    )
 
-        # Application (Employee) makes a demand
-        app_demand = random.randint(st.session_state.app_min_salary, st.session_state.user_max_budget)
-        st.write("Waiting for the Employee's response...")
+    if st.button("Submit Decision"):
+        # Record player's decision
+        st.session_state.player_decisions.append(player_choice)
 
-        if st.button("Submit Offer"):
-            st.session_state.user_proposals.append(user_offer)
-            st.session_state.app_proposals.append(app_demand)
-            st.write(f"Employee (Application) demands: ₹{app_demand}")
+        # Simulate competitor decisions
+        # For realism, we can have multiple competitors with different strategies
+        competitor_choices = []
+        num_competitors = 2  # Number of competitors
 
-            # Check for agreement
-            if user_offer >= app_demand:
-                st.session_state.agreement_reached = True
-                st.session_state.agreed_salary = app_demand
-                st.success(f"🎉 Agreement reached at a salary of ₹{st.session_state.agreed_salary}!")
-                # Calculate payoffs
-                employer_value = st.session_state.user_max_budget * 1.2  # Assume employee brings 20% more value
-                st.session_state.payoffs['You'] = employer_value - st.session_state.agreed_salary
-                st.session_state.payoffs['Application'] = st.session_state.agreed_salary - st.session_state.app_min_salary
-                st.session_state.game_state = 'results'
+        for i in range(num_competitors):
+            strategy = random.choice(['Aggressive', 'Random'])
+            if strategy == 'Aggressive':
+                competitor_choice = 'Enter'
             else:
-                st.warning("No agreement reached this round.")
-                # Move to next round or end game
-                if st.session_state.round < st.session_state.max_rounds:
-                    st.session_state.round += 1
-                else:
-                    st.session_state.game_state = 'results'
+                competitor_choice = random.choice(['Enter', 'Stay Out'])
+            competitor_choices.append(competitor_choice)
 
-    else:
-        # User is Employee
-        st.subheader("Your Turn: Employee's Demand")
-        user_demand = st.number_input(
-            "Enter your salary demand to the Employer (₹):",
-            min_value=st.session_state.user_min_salary,
-            max_value=st.session_state.app_max_budget,
-            step=5000,
-            key=f'user_demand_round_{st.session_state.round}'
-        )
+        st.session_state.competitor_decisions.append(competitor_choices)
 
-        # Application (Employer) makes an offer
-        app_offer = random.randint(st.session_state.user_min_salary, st.session_state.app_max_budget)
-        st.write("Waiting for the Employer's offer...")
+        # Calculate total entrants
+        total_entrants = competitor_choices.count('Enter')
+        if player_choice == 'Enter':
+            total_entrants += 1
 
-        if st.button("Submit Demand"):
-            st.session_state.user_proposals.append(user_demand)
-            st.session_state.app_proposals.append(app_offer)
-            st.write(f"Employer (Application) offers: ₹{app_offer}")
-
-            # Check for agreement
-            if app_offer >= user_demand:
-                st.session_state.agreement_reached = True
-                st.session_state.agreed_salary = user_demand
-                st.success(f"🎉 Agreement reached at a salary of ₹{st.session_state.agreed_salary}!")
-                # Calculate payoffs
-                employer_value = st.session_state.app_max_budget * 1.2  # Assume employee brings 20% more value
-                st.session_state.payoffs['You'] = st.session_state.agreed_salary - st.session_state.user_min_salary
-                st.session_state.payoffs['Application'] = employer_value - st.session_state.agreed_salary
-                st.session_state.game_state = 'results'
+        # Determine payoff
+        if player_choice == 'Enter':
+            if total_entrants <= 2:
+                payoff = 100
+                st.success("You entered the market and made a profit of ₹100.")
             else:
-                st.warning("No agreement reached this round.")
-                # Move to next round or end game
-                if st.session_state.round < st.session_state.max_rounds:
-                    st.session_state.round += 1
-                else:
-                    st.session_state.game_state = 'results'
+                payoff = -50
+                st.warning("Too many firms entered. You incurred a loss of ₹50.")
+        else:
+            payoff = 0
+            st.info("You stayed out of the market.")
+
+        st.session_state.payoffs.append(payoff)
+        st.session_state.total_payoff += payoff
+
+        # Display competitor actions
+        st.write("**Competitors' Decisions:**")
+        for idx, choice in enumerate(competitor_choices, 1):
+            st.write(f"Competitor {idx}: {choice}")
+
+        # Move to next round or end game
+        if st.session_state.round < st.session_state.max_rounds:
+            st.session_state.round += 1
+        else:
+            st.session_state.game_state = 'results'
 
 # Results Phase
 elif st.session_state.game_state == 'results':
-    st.title("📈 Negotiation Results")
-    if st.session_state.agreement_reached:
-        st.write(f"An agreement was reached at a salary of ₹{st.session_state.agreed_salary}.")
+    st.title("📈 Game Over - Results")
+    st.write("**Your Total Payoff:** ₹{}".format(st.session_state.total_payoff))
 
-        st.subheader("Payoffs")
-        st.write(f"**Your Payoff**: ₹{st.session_state.payoffs['You']}")
-        st.write(f"**Application's Payoff**: ₹{st.session_state.payoffs['Application']}")
-    else:
-        st.write("No agreement was reached after all negotiation rounds.")
-        st.write("Both parties receive a payoff of **₹0**.")
+    # Display detailed results
+    st.subheader("Round-by-Round Summary")
+    for i in range(st.session_state.max_rounds):
+        st.write(f"### Round {i+1}")
+        st.write(f"- **Your Decision:** {st.session_state.player_decisions[i]}")
+        st.write(f"- **Competitors' Decisions:** {st.session_state.competitor_decisions[i]}")
+        st.write(f"- **Your Payoff:** ₹{st.session_state.payoffs[i]}")
+        st.write("---")
 
-    # Display the negotiation history
-    st.subheader("Negotiation History")
-    negotiation_data = {
-        'Round': list(range(1, st.session_state.round + 1)),
-        'Your Proposal (₹)': st.session_state.user_proposals,
-        "Application's Proposal (₹)": st.session_state.app_proposals
-    }
-    st.table(negotiation_data)
+    # Educational Insights
+    st.subheader("📚 Game Theory Insights")
+    st.write("""
+    - **Nash Equilibrium:** In this game, the Nash Equilibrium occurs when firms randomize their strategies to keep competitors indifferent.
+    - **Dominant Strategy:** No dominant strategy exists here because your best choice depends on competitors' actions.
+    - **Strategic Thinking:** Anticipate competitors' strategies to inform your decisions.
+    """)
 
     # Reset the game
-    if st.button("Restart Game"):
-        st.session_state.game_state = 'setup'
+    if st.button("Play Again"):
+        st.session_state.game_state = 'intro'
         st.session_state.round = 1
-        st.session_state.user_role = None
-        st.session_state.user_min_salary = 0
-        st.session_state.user_max_budget = 0
-        st.session_state.app_min_salary = 0
-        st.session_state.app_max_budget = 0
-        st.session_state.user_proposals = []
-        st.session_state.app_proposals = []
-        st.session_state.agreement_reached = False
-        st.session_state.agreed_salary = 0
-        st.session_state.payoffs = {'You': 0, 'Application': 0}
+        st.session_state.player_decisions = []
+        st.session_state.competitor_decisions = []
+        st.session_state.payoffs = []
+        st.session_state.total_payoff = 0
