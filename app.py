@@ -16,6 +16,16 @@ if 'game_state' not in st.session_state:
     st.session_state.num_competitors = 4  # Total competitors
     st.session_state.competitor_strategies = []
 
+# Function to reset the game
+def reset_game():
+    st.session_state.game_state = 'intro'
+    st.session_state.round = 1
+    st.session_state.player_decisions = []
+    st.session_state.competitor_decisions = []
+    st.session_state.payoffs = []
+    st.session_state.total_payoff = 0
+    st.session_state.competitor_strategies = []
+
 # Game Introduction
 if st.session_state.game_state == 'intro':
     st.title("🏪 Market Entry Simulator")
@@ -69,7 +79,6 @@ elif st.session_state.game_state == 'play':
         key=f'player_choice_round_{st.session_state.round}'
     )
 
-    # Submit decision and proceed to next round automatically
     if st.button("Submit Decision"):
         # Record player's decision
         st.session_state.player_decisions.append(player_choice)
@@ -81,7 +90,7 @@ elif st.session_state.game_state == 'play':
             if 'Aggressive' in strategy:
                 competitor_choice = 'Enter'
             elif 'Cautious' in strategy:
-                # Cautious entry if previous round had few entrants
+                # Cautious entry if previous payoff was positive
                 if st.session_state.round == 1 or st.session_state.payoffs[-1] >= 0:
                     competitor_choice = 'Enter'
                 else:
@@ -137,11 +146,13 @@ elif st.session_state.game_state == 'play':
         # Move to next round or end game
         if st.session_state.round < st.session_state.max_rounds:
             st.session_state.round += 1
-            # Reset radio button for the next round
-            st.experimental_rerun()
+            # Clear the radio button selection for the next round
+            del st.session_state[f'player_choice_round_{st.session_state.round - 1}']
+            # Automatically proceed to the next round
+            # No need for st.experimental_rerun(); Streamlit will rerun on its own
         else:
             st.session_state.game_state = 'results'
-            st.experimental_rerun()
+            # No need for st.experimental_rerun(); Streamlit will rerun on its own
 
 # Results Phase
 elif st.session_state.game_state == 'results':
@@ -157,7 +168,8 @@ elif st.session_state.game_state == 'results':
         competitor_strategies = st.session_state.competitor_strategies
         st.write("**Competitors' Decisions and Strategies:**")
         for idx in range(st.session_state.num_competitors):
-            st.write(f"Competitor {idx+1} ({competitor_strategies[idx].split(':')[0]}): {competitor_decisions[idx]}")
+            strategy_name = competitor_strategies[idx].split(':')[0]
+            st.write(f"Competitor {idx+1} ({strategy_name}): {competitor_decisions[idx]}")
         st.write(f"- **Your Payoff:** ${st.session_state.payoffs[i]}")
         st.write("---")
 
@@ -171,11 +183,5 @@ elif st.session_state.game_state == 'results':
 
     # Reset the game
     if st.button("Play Again"):
-        st.session_state.game_state = 'intro'
-        st.session_state.round = 1
-        st.session_state.player_decisions = []
-        st.session_state.competitor_decisions = []
-        st.session_state.payoffs = []
-        st.session_state.total_payoff = 0
-        st.session_state.competitor_strategies = []
-        st.experimental_rerun()
+        reset_game()
+        # No need for st.experimental_rerun(); Streamlit will rerun on its own
