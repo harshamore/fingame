@@ -15,6 +15,7 @@ if 'game_state' not in st.session_state:
     st.session_state.total_payoff = 0
     st.session_state.num_competitors = 4  # Total competitors
     st.session_state.competitor_strategies = []
+    st.session_state.show_results = False
 
 # Function to reset the game
 def reset_game():
@@ -25,6 +26,7 @@ def reset_game():
     st.session_state.payoffs = []
     st.session_state.total_payoff = 0
     st.session_state.competitor_strategies = []
+    st.session_state.show_results = False
 
 # Game Introduction
 if st.session_state.game_state == 'intro':
@@ -52,19 +54,19 @@ if st.session_state.game_state == 'intro':
     # Display Competitor Strategies
     st.header("Competitor Strategies")
     st.write("The competitors in this game use different strategies:")
-    strategies = [
+    strategies_list = [
         'Aggressive Entry: Always enter the market.',
         'Cautious Entry: Enter only if conditions are favorable.',
         'Randomized Strategy: Enter based on probability.',
         'Tit-for-Tat: Mimic your previous action.',
         'Adaptive Strategy: Adjust based on past outcomes.'
     ]
-    for idx, strategy in enumerate(strategies, 1):
+    for idx, strategy in enumerate(strategies_list, 1):
         st.write(f"**Competitor {idx}**: {strategy}")
 
     if st.button("Start Game"):
         # Assign strategies to competitors
-        st.session_state.competitor_strategies = random.sample(strategies, st.session_state.num_competitors)
+        st.session_state.competitor_strategies = random.sample(strategies_list, st.session_state.num_competitors)
         st.session_state.game_state = 'play'
 
 # Game Play
@@ -72,87 +74,103 @@ elif st.session_state.game_state == 'play':
     st.title("🏪 Market Entry Simulator")
     st.header(f"Round {st.session_state.round} of {st.session_state.max_rounds}")
 
-    st.write("**Make your decision:** Do you want to enter the market this round?")
-    player_choice = st.radio(
-        "Choose your action:",
-        ('Enter', 'Stay Out'),
-        key=f'player_choice_round_{st.session_state.round}'
-    )
+    # Show Payoff Structure
+    st.subheader("Payoff Structure")
+    st.write("""
+    - **If you enter and total entrants are ≤ 2**: Profit of **$100**.
+    - **If you enter and total entrants exceed 2**: Loss of **$50**.
+    - **If you stay out**: Profit of **$0**.
+    """)
 
-    if st.button("Submit Decision"):
-        # Record player's decision
-        st.session_state.player_decisions.append(player_choice)
+    # Show Competitor Strategies
+    st.subheader("Competitor Strategies")
+    st.write("Your competitors are using the following strategies:")
+    for idx, strategy in enumerate(st.session_state.competitor_strategies, 1):
+        st.write(f"**Competitor {idx}**: {strategy}")
 
-        # Simulate competitor decisions based on their strategies
-        competitor_choices = []
-        for idx in range(st.session_state.num_competitors):
-            strategy = st.session_state.competitor_strategies[idx]
-            if 'Aggressive' in strategy:
-                competitor_choice = 'Enter'
-            elif 'Cautious' in strategy:
-                # Cautious entry if previous payoff was positive
-                if st.session_state.round == 1 or st.session_state.payoffs[-1] >= 0:
+    if not st.session_state.show_results:
+        st.write("**Make your decision:** Do you want to enter the market this round?")
+        player_choice = st.radio(
+            "Choose your action:",
+            ('Enter', 'Stay Out'),
+            key=f'player_choice_round_{st.session_state.round}'
+        )
+
+        if st.button("Submit Decision"):
+            # Record player's decision
+            st.session_state.player_decisions.append(player_choice)
+
+            # Simulate competitor decisions based on their strategies
+            competitor_choices = []
+            for idx in range(st.session_state.num_competitors):
+                strategy = st.session_state.competitor_strategies[idx]
+                if 'Aggressive' in strategy:
                     competitor_choice = 'Enter'
-                else:
-                    competitor_choice = 'Stay Out'
-            elif 'Randomized' in strategy:
-                competitor_choice = random.choice(['Enter', 'Stay Out'])
-            elif 'Tit-for-Tat' in strategy:
-                if st.session_state.round == 1:
-                    competitor_choice = 'Enter'
-                else:
-                    competitor_choice = st.session_state.player_decisions[-2]
-            elif 'Adaptive' in strategy:
-                if st.session_state.round == 1:
-                    competitor_choice = random.choice(['Enter', 'Stay Out'])
-                else:
-                    # If last payoff was positive, repeat action; else, switch
-                    last_payoff = st.session_state.payoffs[-1]
-                    if last_payoff >= 0:
-                        competitor_choice = st.session_state.competitor_decisions[-1][idx]
+                elif 'Cautious' in strategy:
+                    # Cautious entry if previous payoff was positive
+                    if st.session_state.round == 1 or st.session_state.payoffs[-1] >= 0:
+                        competitor_choice = 'Enter'
                     else:
-                        competitor_choice = 'Enter' if st.session_state.competitor_decisions[-1][idx] == 'Stay Out' else 'Stay Out'
+                        competitor_choice = 'Stay Out'
+                elif 'Randomized' in strategy:
+                    competitor_choice = random.choice(['Enter', 'Stay Out'])
+                elif 'Tit-for-Tat' in strategy:
+                    if st.session_state.round == 1:
+                        competitor_choice = 'Enter'
+                    else:
+                        competitor_choice = st.session_state.player_decisions[-2]
+                elif 'Adaptive' in strategy:
+                    if st.session_state.round == 1:
+                        competitor_choice = random.choice(['Enter', 'Stay Out'])
+                    else:
+                        # If last payoff was positive, repeat action; else, switch
+                        last_payoff = st.session_state.payoffs[-1]
+                        if last_payoff >= 0:
+                            competitor_choice = st.session_state.competitor_decisions[-1][idx]
+                        else:
+                            competitor_choice = 'Enter' if st.session_state.competitor_decisions[-1][idx] == 'Stay Out' else 'Stay Out'
+                else:
+                    competitor_choice = random.choice(['Enter', 'Stay Out'])
+                competitor_choices.append(competitor_choice)
+
+            st.session_state.competitor_decisions.append(competitor_choices)
+
+            # Calculate total entrants
+            total_entrants = competitor_choices.count('Enter')
+            if player_choice == 'Enter':
+                total_entrants += 1
+
+            # Determine payoff
+            if player_choice == 'Enter':
+                if total_entrants <= 2:
+                    payoff = 100
+                    st.success("You entered the market and made a profit of **$100**.")
+                else:
+                    payoff = -50
+                    st.warning("Too many firms entered. You incurred a loss of **$50**.")
             else:
-                competitor_choice = random.choice(['Enter', 'Stay Out'])
-            competitor_choices.append(competitor_choice)
+                payoff = 0
+                st.info("You stayed out of the market.")
 
-        st.session_state.competitor_decisions.append(competitor_choices)
+            st.session_state.payoffs.append(payoff)
+            st.session_state.total_payoff += payoff
 
-        # Calculate total entrants
-        total_entrants = competitor_choices.count('Enter')
-        if player_choice == 'Enter':
-            total_entrants += 1
+            # Display competitor actions
+            st.write("**Competitors' Decisions:**")
+            for idx, choice in enumerate(competitor_choices, 1):
+                st.write(f"Competitor {idx}: {choice}")
 
-        # Determine payoff
-        if player_choice == 'Enter':
-            if total_entrants <= 2:
-                payoff = 100
-                st.success("You entered the market and made a profit of **$100**.")
-            else:
-                payoff = -50
-                st.warning("Too many firms entered. You incurred a loss of **$50**.")
-        else:
-            payoff = 0
-            st.info("You stayed out of the market.")
-
-        st.session_state.payoffs.append(payoff)
-        st.session_state.total_payoff += payoff
-
-        # Display competitor actions
-        st.write("**Competitors' Decisions:**")
-        for idx, choice in enumerate(competitor_choices, 1):
-            st.write(f"Competitor {idx}: {choice}")
-
-        # Move to next round or end game
+            # Set flag to show results
+            st.session_state.show_results = True
+    else:
         if st.session_state.round < st.session_state.max_rounds:
-            st.session_state.round += 1
-            # Clear the radio button selection for the next round
-            del st.session_state[f'player_choice_round_{st.session_state.round - 1}']
-            # Automatically proceed to the next round
-            # No need for st.experimental_rerun(); Streamlit will rerun on its own
+            if st.button("Next Round"):
+                st.session_state.round += 1
+                st.session_state.show_results = False
+                # Clear the radio button selection for the next round
+                del st.session_state[f'player_choice_round_{st.session_state.round - 1}']
         else:
             st.session_state.game_state = 'results'
-            # No need for st.experimental_rerun(); Streamlit will rerun on its own
 
 # Results Phase
 elif st.session_state.game_state == 'results':
@@ -184,4 +202,3 @@ elif st.session_state.game_state == 'results':
     # Reset the game
     if st.button("Play Again"):
         reset_game()
-        # No need for st.experimental_rerun(); Streamlit will rerun on its own
