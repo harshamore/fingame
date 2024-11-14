@@ -1,174 +1,139 @@
 import streamlit as st
 import random
-import time
 
-# Initialize Game State in Session State
-if 'game_started' not in st.session_state:
-    st.session_state.game_started = False
-    st.session_state.start_time = None
-    st.session_state.game_data = {
-        "cash": 100000,
-        "inventory": 500,
-        "accounts_receivable": 0,
-        "accounts_payable": 0,
-        "inventory_period": 30,   # Default values in days
-        "collection_period": 30,
-        "payment_period": 30
-    }
-    st.session_state.purchase_amount = 0
-    st.session_state.credit_days = 30
-    st.session_state.payment_action = "Pay on Due Date"
-    st.session_state.last_event_time = time.time()
+# Set up the page configuration
+st.set_page_config(page_title="Salary Negotiation Simulator", layout="centered")
 
-# Set page configuration
-st.set_page_config(page_title="Business Balance Simulator", layout="wide")
+# Initialize session state
+if 'game_state' not in st.session_state:
+    st.session_state.game_state = 'setup'
+    st.session_state.round = 1
+    st.session_state.max_rounds = 3
+    st.session_state.employer_budget = 0
+    st.session_state.employee_min_salary = 0
+    st.session_state.employer_offer = []
+    st.session_state.employee_demand = []
+    st.session_state.agreement_reached = False
+    st.session_state.payoffs = {'Employer': 0, 'Employee': 0}
 
-# Sidebar controls
-with st.sidebar:
-    st.title("Business Balance Simulator")
-    st.write("**Objective**: Maximize your cash balance by effectively managing inventory, collections, and payments within **5 minutes**.")
+# Game Setup
+if st.session_state.game_state == 'setup':
+    st.title("💼 Salary Negotiation Simulator")
+    st.write("Welcome to the Salary Negotiation Simulator! This game models the negotiation between an employer and an employee using game theory concepts.")
 
-    if not st.session_state.game_started:
-        if st.button("Start Game"):
-            st.session_state.game_started = True
-            st.session_state.start_time = time.time()
-            st.session_state.last_event_time = st.session_state.start_time
-            st.success("Game Started! Good luck!")
-    else:
-        elapsed_time = time.time() - st.session_state.start_time
-        remaining_time = int(300 - elapsed_time)
-        st.write(f"⏳ **Time Remaining**: {remaining_time} seconds")
+    st.header("Game Setup")
+    col1, col2 = st.columns(2)
 
-# Main game interface
-if st.session_state.game_started:
-    game_data = st.session_state.game_data
-    elapsed_time = time.time() - st.session_state.start_time
+    with col1:
+        st.subheader("Employer Setup")
+        st.session_state.employer_budget = st.number_input(
+            "Enter the maximum budget for the position (₹):",
+            min_value=50000,
+            max_value=500000,
+            step=5000,
+            value=150000,
+            key='employer_budget_input'
+        )
 
-    if elapsed_time >= 300:  # Game duration set to 5 minutes (300 seconds)
-        st.session_state.game_started = False
-        st.write("## 🏁 Game Over!")
-        st.write("### Your Performance Summary:")
-        st.write(f"- **Final Cash Balance**: ₹{game_data['cash']}")
-        st.write(f"- **Final Inventory**: {game_data['inventory']} units")
-        st.write(f"- **Final Accounts Receivable**: ₹{game_data['accounts_receivable']}")
-        st.write(f"- **Final Accounts Payable**: ₹{game_data['accounts_payable']}")
-        st.write(f"- **Inventory Period**: {game_data['inventory_period']} days")
-        st.write(f"- **Collection Period**: {game_data['collection_period']} days")
-        st.write(f"- **Payment Period**: {game_data['payment_period']} days")
-        st.balloons()
-    else:
-        # Display current state
-        st.markdown("## 📊 Business Dashboard")
-        st.write("Monitor your key business metrics in real-time.")
-        cols = st.columns(4)
-        cols[0].metric("Cash Balance", f"₹{game_data['cash']}")
-        cols[1].metric("Inventory", f"{game_data['inventory']} units")
-        cols[2].metric("Accounts Receivable", f"₹{game_data['accounts_receivable']}")
-        cols[3].metric("Accounts Payable", f"₹{game_data['accounts_payable']}")
+    with col2:
+        st.subheader("Employee Setup")
+        st.session_state.employee_min_salary = st.number_input(
+            "Enter the minimum acceptable salary (₹):",
+            min_value=50000,
+            max_value=500000,
+            step=5000,
+            value=100000,
+            key='employee_salary_input'
+        )
 
-        st.markdown("---")
+    if st.button("Start Negotiation"):
+        if st.session_state.employer_budget < st.session_state.employee_min_salary:
+            st.error("The employer's budget must be equal to or higher than the employee's minimum salary.")
+        else:
+            st.session_state.game_state = 'negotiation'
 
-        # Player decision inputs
-        st.markdown("## 🎯 Your Decisions")
-        st.write("Make strategic choices to optimize your business performance.")
+# Negotiation Phase
+elif st.session_state.game_state == 'negotiation':
+    st.title("🤝 Salary Negotiation Simulator")
+    st.header(f"Round {st.session_state.round} of {st.session_state.max_rounds}")
 
-        # Manage Inventory
-        with st.expander("🛒 Manage Inventory"):
-            st.write("Purchase inventory to meet customer demand.")
-            purchase_amount = st.number_input(
-                "Order Inventory (units)",
-                min_value=0,
-                step=10,
-                key="purchase_inventory_unique"
-            )
-            if st.button("Purchase Inventory"):
-                cost = purchase_amount * 100  # Assume ₹100 per unit cost
-                if game_data['cash'] >= cost:
-                    game_data['cash'] -= cost
-                    game_data['inventory'] += purchase_amount
-                    st.success(f"Purchased {purchase_amount} units of inventory for ₹{cost}.")
-                    st.session_state.purchase_amount = 0  # Reset input after purchase
-                else:
-                    st.error("Insufficient cash to purchase inventory.")
+    st.write("**Employer and Employee, please enter your proposals.**")
+    st.write("Note: Proposals are confidential until both are submitted.")
 
-        # Set Customer Credit Terms
-        with st.expander("💳 Set Customer Credit Terms"):
-            st.write("Choose the credit terms you offer to customers.")
-            credit_days = st.selectbox(
-                "Credit Terms (Days)",
-                [15, 30, 45],
-                index=[15, 30, 45].index(st.session_state.credit_days),
-                key="credit_terms_unique"
-            )
-            if credit_days != st.session_state.credit_days:
-                st.session_state.credit_days = credit_days
-                game_data['collection_period'] = credit_days
-                st.info(f"Customer credit terms set to {credit_days} days.")
+    # Input forms for simultaneous proposals
+    col1, col2 = st.columns(2)
 
-        # Manage Supplier Payments
-        with st.expander("💰 Manage Supplier Payments"):
-            st.write("Decide when to pay your suppliers.")
-            payment_action = st.selectbox(
-                "Supplier Payment",
-                ["Pay Now", "Pay on Due Date", "Delay Payment"],
-                index=["Pay Now", "Pay on Due Date", "Delay Payment"].index(st.session_state.payment_action),
-                key="supplier_payment_unique"
-            )
-            if payment_action != st.session_state.payment_action:
-                st.session_state.payment_action = payment_action
-                if payment_action == "Pay Now":
-                    game_data['payment_period'] -= 5  # Benefit of early payment
-                    st.info("You chose to pay suppliers now. Payment period decreased by 5 days.")
-                elif payment_action == "Delay Payment":
-                    game_data['payment_period'] += 5  # Late fees may apply
-                    st.warning("You chose to delay payment. Payment period increased by 5 days.")
-                else:
-                    st.info("You chose to pay on the due date.")
+    with col1:
+        st.subheader("Employer's Offer")
+        employer_offer = st.number_input(
+            "Enter your salary offer (₹):",
+            min_value=st.session_state.employee_min_salary,
+            max_value=st.session_state.employer_budget,
+            step=5000,
+            key=f'employer_offer_round_{st.session_state.round}'
+        )
 
-        st.markdown("---")
+    with col2:
+        st.subheader("Employee's Demand")
+        employee_demand = st.number_input(
+            "Enter your salary demand (₹):",
+            min_value=st.session_state.employee_min_salary,
+            max_value=st.session_state.employer_budget,
+            step=5000,
+            key=f'employee_demand_round_{st.session_state.round}'
+        )
 
-        # Random events (triggered every 15 seconds)
-        current_time = time.time()
-        if current_time - st.session_state.last_event_time >= 15:
-            st.session_state.last_event_time = current_time
+    if st.button("Submit Proposals"):
+        st.session_state.employer_offer.append(employer_offer)
+        st.session_state.employee_demand.append(employee_demand)
 
-            event_trigger = random.randint(1, 100)
-            st.markdown("## ⚡ Random Event")
-            if event_trigger < 25:
-                st.success("**Sales Surge!** Demand has increased temporarily.")
-                demand_increase = random.randint(30, 60)
-                if game_data['inventory'] >= demand_increase:
-                    game_data['inventory'] -= demand_increase
-                    sales_revenue = demand_increase * 150  # Assume selling price is ₹150 per unit
-                    game_data['cash'] += sales_revenue
-                    st.write(f"Sold {demand_increase} units, earning ₹{sales_revenue}.")
-                else:
-                    st.warning("Not enough inventory to meet the increased demand.")
-            elif event_trigger < 50:
-                st.warning("**Delayed Customer Payments!** Customers are taking longer to pay.")
-                game_data['collection_period'] += 10
-                st.write("Collection period increased by 10 days.")
-            elif event_trigger < 75:
-                st.info("**Supplier Discount Offer!** Pay now and get a 5% discount.")
-                if st.button("Accept Discount and Pay Suppliers"):
-                    discount = game_data['accounts_payable'] * 0.05
-                    payment = game_data['accounts_payable'] - discount
-                    if game_data['cash'] >= payment:
-                        game_data['cash'] -= payment
-                        game_data['accounts_payable'] = 0
-                        st.success(f"Paid suppliers early and saved ₹{discount}.")
-                    else:
-                        st.error("Insufficient cash to pay suppliers.")
+        # Check for agreement
+        if employer_offer >= employee_demand:
+            st.session_state.agreement_reached = True
+            agreed_salary = employee_demand
+            st.success(f"🎉 Agreement reached at a salary of ₹{agreed_salary}!")
+            # Calculate payoffs
+            employer_value = st.session_state.employer_budget * 1.2  # Assume the employee brings 20% more value
+            st.session_state.payoffs['Employer'] = employer_value - agreed_salary
+            st.session_state.payoffs['Employee'] = agreed_salary - st.session_state.employee_min_salary
+            st.session_state.game_state = 'results'
+        else:
+            st.warning("No agreement reached this round.")
+            # Move to next round or end game
+            if st.session_state.round < st.session_state.max_rounds:
+                st.session_state.round += 1
             else:
-                st.info("No significant events. Continue managing your business.")
+                st.session_state.game_state = 'results'
 
-        # Display updated periods
-        st.markdown("## ⏱️ Period Metrics")
-        st.write("Track your operational periods to ensure business efficiency.")
-        cols = st.columns(3)
-        cols[0].metric("Inventory Period", f"{game_data['inventory_period']} days")
-        cols[1].metric("Collection Period", f"{game_data['collection_period']} days")
-        cols[2].metric("Payment Period", f"{game_data['payment_period']} days")
+# Results Phase
+elif st.session_state.game_state == 'results':
+    st.title("📈 Negotiation Results")
+    if st.session_state.agreement_reached:
+        st.write(f"An agreement was reached at a salary of ₹{st.session_state.employee_demand[-1]}.")
 
-        # Slight delay to prevent rapid re-runs
-        time.sleep(1)
+        st.subheader("Payoffs")
+        st.write(f"**Employer's Payoff**: ₹{st.session_state.payoffs['Employer']}")
+        st.write(f"**Employee's Payoff**: ₹{st.session_state.payoffs['Employee']}")
+    else:
+        st.write("No agreement was reached after all negotiation rounds.")
+        st.write("Both parties receive a payoff of **₹0**.")
+
+    # Display the negotiation history
+    st.subheader("Negotiation History")
+    negotiation_data = {
+        'Round': list(range(1, st.session_state.round + 1)),
+        'Employer Offer (₹)': st.session_state.employer_offer,
+        'Employee Demand (₹)': st.session_state.employee_demand
+    }
+    st.table(negotiation_data)
+
+    # Reset the game
+    if st.button("Restart Game"):
+        st.session_state.game_state = 'setup'
+        st.session_state.round = 1
+        st.session_state.employer_budget = 0
+        st.session_state.employee_min_salary = 0
+        st.session_state.employer_offer = []
+        st.session_state.employee_demand = []
+        st.session_state.agreement_reached = False
+        st.session_state.payoffs = {'Employer': 0, 'Employee': 0}
