@@ -162,7 +162,10 @@ elif st.session_state.game_state == 'play':
                 st.session_state.round += 1
                 st.session_state.show_results = False
         else:
-            st.session_state.game_state = 'results'
+            st.write("**End of the game. Click 'View Results' to see the analysis.**")
+            if st.button("View Results"):
+                st.session_state.game_state = 'results'
+                st.session_state.show_results = False
 
 # Results Phase
 elif st.session_state.game_state == 'results':
