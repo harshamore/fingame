@@ -3,7 +3,7 @@ import pandas as pd
 import random
 import time
 
-# Set up session state to avoid duplicate keys
+# Set up session state to avoid duplicate keys and initialize only once
 if "game_data" not in st.session_state:
     st.session_state.game_data = {
         "cash": 100000,
@@ -14,6 +14,10 @@ if "game_data" not in st.session_state:
         "collection_period": 30,
         "payment_period": 30
     }
+    st.session_state.start_time = None  # Game start time placeholder
+    st.session_state.purchase_amount = 0  # Placeholder for inventory input
+    st.session_state.credit_days = 30     # Placeholder for credit terms input
+    st.session_state.payment_action = "Pay on Due Date"  # Placeholder for payment action
 
 # Initialize Game State
 st.set_page_config(page_title="Business Balance Simulator", layout="wide")
@@ -22,7 +26,8 @@ st.set_page_config(page_title="Business Balance Simulator", layout="wide")
 with st.sidebar:
     st.title("Business Balance Simulator")
     st.write("Objective: Run your business profitably in 15 minutes!")
-    start_game = st.button("Start Game")
+    if st.button("Start Game") and st.session_state.start_time is None:
+        st.session_state.start_time = time.time()  # Start the timer
 
     # Metrics display placeholders
     cash_balance = st.empty()
@@ -30,12 +35,8 @@ with st.sidebar:
     accounts_receivable = st.empty()
     accounts_payable = st.empty()
 
-# Game variables initialization
-if start_game:
-    st.session_state.start_time = time.time()
-
 # Main game loop
-if "start_time" in st.session_state:
+if st.session_state.start_time is not None:
     game_data = st.session_state.game_data
     elapsed_time = time.time() - st.session_state.start_time
 
@@ -46,26 +47,32 @@ if "start_time" in st.session_state:
         accounts_receivable.metric("Accounts Receivable", f"₹{game_data['accounts_receivable']}")
         accounts_payable.metric("Accounts Payable", f"₹{game_data['accounts_payable']}")
 
-        # Player decision inputs with unique keys
+        # Player decision inputs with unique session state keys
         with st.expander("Manage Inventory"):
-            purchase_amount = st.number_input("Order Inventory (units)", min_value=0, step=10, key="purchase_inventory_unique")
+            st.session_state.purchase_amount = st.number_input("Order Inventory (units)", 
+                                                               min_value=0, step=10, 
+                                                               key="purchase_inventory_unique")
             # Process inventory purchase
-            if purchase_amount > 0:
-                cost = purchase_amount * 100  # Assume ₹100 per unit cost
+            if st.session_state.purchase_amount > 0:
+                cost = st.session_state.purchase_amount * 100  # Assume ₹100 per unit cost
                 game_data['cash'] -= cost
-                game_data['inventory'] += purchase_amount
+                game_data['inventory'] += st.session_state.purchase_amount
 
         with st.expander("Set Customer Credit Terms"):
-            credit_days = st.selectbox("Credit Terms (Days)", [15, 30, 45], key="credit_terms_unique")
+            st.session_state.credit_days = st.selectbox("Credit Terms (Days)", 
+                                                        [15, 30, 45], 
+                                                        key="credit_terms_unique")
             # Adjust collection period
-            game_data['collection_period'] = credit_days
+            game_data['collection_period'] = st.session_state.credit_days
 
         with st.expander("Manage Supplier Payments"):
-            payment_action = st.selectbox("Supplier Payment", ["Pay Now", "Pay on Due Date", "Delay Payment"], key="supplier_payment_unique")
+            st.session_state.payment_action = st.selectbox("Supplier Payment", 
+                                                           ["Pay Now", "Pay on Due Date", "Delay Payment"], 
+                                                           key="supplier_payment_unique")
             # Adjust payment period
-            if payment_action == "Pay Now":
+            if st.session_state.payment_action == "Pay Now":
                 game_data['payment_period'] -= 5  # Benefit of early payment
-            elif payment_action == "Delay Payment":
+            elif st.session_state.payment_action == "Delay Payment":
                 game_data['payment_period'] += 5  # Late fees may apply
 
         # Random events
