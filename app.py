@@ -179,26 +179,64 @@ elif st.session_state.game_state == 'results':
     st.title("📈 Game Over - Results")
     st.write("**Your Total Payoff:** ${}".format(st.session_state.total_payoff))
 
-    # Display detailed results
-    st.subheader("Round-by-Round Summary")
+    # Display detailed results with analysis
+    st.subheader("Round-by-Round Analysis")
     for i in range(st.session_state.max_rounds):
         st.write(f"### Round {i+1}")
-        st.write(f"- **Your Decision:** {st.session_state.player_decisions[i]}")
+        player_decision = st.session_state.player_decisions[i]
+        st.write(f"- **Your Decision:** {player_decision}")
         competitor_decisions = st.session_state.competitor_decisions[i]
         competitor_strategies = st.session_state.competitor_strategies
         st.write("**Competitors' Decisions and Strategies:**")
         for idx in range(st.session_state.num_competitors):
             strategy_name = competitor_strategies[idx].split(':')[0]
             st.write(f"Competitor {idx+1} ({strategy_name}): {competitor_decisions[idx]}")
+
+        total_entrants = competitor_decisions.count('Enter')
+        if player_decision == 'Enter':
+            total_entrants += 1
+
+        st.write(f"- **Total Entrants:** {total_entrants}")
         st.write(f"- **Your Payoff:** ${st.session_state.payoffs[i]}")
+
+        # Analysis
+        st.markdown(f"#### Analysis for Round {i+1}")
+        st.write(f"You chose to **{player_decision}**.")
+        st.write(f"Competitors chose: {', '.join(competitor_decisions)}.")
+
+        if player_decision == 'Enter':
+            if total_entrants <= 2:
+                st.write("Since total entrants were ≤ 2, you made a profit of $100.")
+                st.write("Your decision to enter was profitable.")
+            else:
+                st.write("Since total entrants exceeded 2, you incurred a loss of $50.")
+                st.write("Market over-saturation led to losses for entrants.")
+        else:
+            st.write("You stayed out of the market and neither gained nor lost money.")
+            if total_entrants > 2:
+                st.write("Your decision to stay out was wise, as entrants incurred losses due to over-saturation.")
+            else:
+                st.write("You missed an opportunity for profit, as total entrants were ≤ 2.")
+
+        # Explain competitors' strategies and their impact
+        for idx in range(st.session_state.num_competitors):
+            strategy_name = competitor_strategies[idx].split(':')[0]
+            competitor_decision = competitor_decisions[idx]
+            st.write(f"Competitor {idx+1} used the **{strategy_name}** strategy and chose to **{competitor_decision}**.")
+
+        # Game theory insights for the round
+        st.write("**Game Theory Analysis:**")
+        st.write("- **Strategic Thinking:** Understanding competitors' strategies could help predict their actions.")
+        st.write("- **Nash Equilibrium:** No player can benefit by unilaterally changing their decision if others' decisions remain the same.")
         st.write("---")
 
-    # Educational Insights
-    st.subheader("📚 Game Theory Insights")
+    # Overall Game Theory Insights
+    st.subheader("📚 Overall Game Theory Insights")
     st.write("""
-    - **Nash Equilibrium:** In this game, Nash Equilibrium occurs when firms randomize their strategies, making others indifferent.
-    - **Dominant Strategy:** No dominant strategy exists; the best action depends on competitors.
-    - **Strategic Thinking:** Anticipate competitors' strategies and adapt your decisions.
+    - **Nash Equilibrium:** Throughout the game, you might have observed situations where your best response depended on the competitors' actions.
+    - **Dominant Strategy:** In this game, no dominant strategy exists because the best choice (Enter or Stay Out) depends on competitors' decisions.
+    - **Strategic Thinking:** Anticipating competitors' strategies is crucial. By understanding their behavior patterns, you can adjust your decisions to maximize payoffs.
+    - **Market Dynamics:** Entering a saturated market leads to losses, demonstrating the importance of considering market capacity.
     """)
 
     # Reset the game
