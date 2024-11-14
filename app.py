@@ -165,10 +165,12 @@ elif st.session_state.game_state == 'play':
     else:
         if st.session_state.round < st.session_state.max_rounds:
             if st.button("Next Round"):
+                # Clear the radio button selection for the next round
+                key_to_delete = f'player_choice_round_{st.session_state.round}'
+                if key_to_delete in st.session_state:
+                    del st.session_state[key_to_delete]
                 st.session_state.round += 1
                 st.session_state.show_results = False
-                # Clear the radio button selection for the next round
-                del st.session_state[f'player_choice_round_{st.session_state.round - 1}']
         else:
             st.session_state.game_state = 'results'
 
