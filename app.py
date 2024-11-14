@@ -9,111 +9,150 @@ if 'game_state' not in st.session_state:
     st.session_state.game_state = 'setup'
     st.session_state.round = 1
     st.session_state.max_rounds = 3
-    st.session_state.employer_budget = 0
-    st.session_state.employee_min_salary = 0
-    st.session_state.employer_offer = []
-    st.session_state.employee_demand = []
+    st.session_state.user_role = None
+    st.session_state.user_min_salary = 0
+    st.session_state.user_max_budget = 0
+    st.session_state.app_min_salary = 0
+    st.session_state.app_max_budget = 0
+    st.session_state.user_proposals = []
+    st.session_state.app_proposals = []
     st.session_state.agreement_reached = False
-    st.session_state.payoffs = {'Employer': 0, 'Employee': 0}
+    st.session_state.agreed_salary = 0
+    st.session_state.payoffs = {'You': 0, 'Application': 0}
 
 # Game Setup
 if st.session_state.game_state == 'setup':
     st.title("💼 Salary Negotiation Simulator")
-    st.write("Welcome to the Salary Negotiation Simulator! This game models the negotiation between an employer and an employee using game theory concepts.")
+    st.write("Negotiate a salary with the application acting as your opponent.")
 
-    st.header("Game Setup")
-    col1, col2 = st.columns(2)
+    st.header("Select Your Role")
+    st.session_state.user_role = st.radio(
+        "Choose your role:",
+        ('Employer', 'Employee'),
+        key='user_role_selection'
+    )
 
-    with col1:
-        st.subheader("Employer Setup")
-        st.session_state.employer_budget = st.number_input(
-            "Enter the maximum budget for the position (₹):",
+    if st.session_state.user_role == 'Employer':
+        st.subheader("Your Role: Employer")
+        st.session_state.user_max_budget = st.number_input(
+            "Enter your maximum budget for the position (₹):",
             min_value=50000,
             max_value=500000,
             step=5000,
             value=150000,
-            key='employer_budget_input'
+            key='user_max_budget_input'
         )
-
-    with col2:
-        st.subheader("Employee Setup")
-        st.session_state.employee_min_salary = st.number_input(
-            "Enter the minimum acceptable salary (₹):",
+        # Application sets its minimum acceptable salary
+        st.session_state.app_min_salary = random.randint(50000, st.session_state.user_max_budget)
+        st.write("You will negotiate with an Employee (the application).")
+    else:
+        st.subheader("Your Role: Employee")
+        st.session_state.user_min_salary = st.number_input(
+            "Enter your minimum acceptable salary (₹):",
             min_value=50000,
             max_value=500000,
             step=5000,
             value=100000,
-            key='employee_salary_input'
+            key='user_min_salary_input'
         )
+        # Application sets its maximum budget
+        st.session_state.app_max_budget = random.randint(st.session_state.user_min_salary, 500000)
+        st.write("You will negotiate with an Employer (the application).")
 
     if st.button("Start Negotiation"):
-        if st.session_state.employer_budget < st.session_state.employee_min_salary:
-            st.error("The employer's budget must be equal to or higher than the employee's minimum salary.")
-        else:
-            st.session_state.game_state = 'negotiation'
+        st.session_state.game_state = 'negotiation'
 
 # Negotiation Phase
 elif st.session_state.game_state == 'negotiation':
     st.title("🤝 Salary Negotiation Simulator")
     st.header(f"Round {st.session_state.round} of {st.session_state.max_rounds}")
 
-    st.write("**Employer and Employee, please enter your proposals.**")
-    st.write("Note: Proposals are confidential until both are submitted.")
-
-    # Input forms for simultaneous proposals
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Employer's Offer")
-        employer_offer = st.number_input(
-            "Enter your salary offer (₹):",
-            min_value=st.session_state.employee_min_salary,
-            max_value=st.session_state.employer_budget,
+    # User and Application make proposals
+    if st.session_state.user_role == 'Employer':
+        # User is Employer
+        st.subheader("Your Turn: Employer's Offer")
+        user_offer = st.number_input(
+            "Enter your salary offer to the Employee (₹):",
+            min_value=st.session_state.app_min_salary,
+            max_value=st.session_state.user_max_budget,
             step=5000,
-            key=f'employer_offer_round_{st.session_state.round}'
+            key=f'user_offer_round_{st.session_state.round}'
         )
 
-    with col2:
-        st.subheader("Employee's Demand")
-        employee_demand = st.number_input(
-            "Enter your salary demand (₹):",
-            min_value=st.session_state.employee_min_salary,
-            max_value=st.session_state.employer_budget,
-            step=5000,
-            key=f'employee_demand_round_{st.session_state.round}'
-        )
+        # Application (Employee) makes a demand
+        app_demand = random.randint(st.session_state.app_min_salary, st.session_state.user_max_budget)
+        st.write("Waiting for the Employee's response...")
 
-    if st.button("Submit Proposals"):
-        st.session_state.employer_offer.append(employer_offer)
-        st.session_state.employee_demand.append(employee_demand)
+        if st.button("Submit Offer"):
+            st.session_state.user_proposals.append(user_offer)
+            st.session_state.app_proposals.append(app_demand)
+            st.write(f"Employee (Application) demands: ₹{app_demand}")
 
-        # Check for agreement
-        if employer_offer >= employee_demand:
-            st.session_state.agreement_reached = True
-            agreed_salary = employee_demand
-            st.success(f"🎉 Agreement reached at a salary of ₹{agreed_salary}!")
-            # Calculate payoffs
-            employer_value = st.session_state.employer_budget * 1.2  # Assume the employee brings 20% more value
-            st.session_state.payoffs['Employer'] = employer_value - agreed_salary
-            st.session_state.payoffs['Employee'] = agreed_salary - st.session_state.employee_min_salary
-            st.session_state.game_state = 'results'
-        else:
-            st.warning("No agreement reached this round.")
-            # Move to next round or end game
-            if st.session_state.round < st.session_state.max_rounds:
-                st.session_state.round += 1
-            else:
+            # Check for agreement
+            if user_offer >= app_demand:
+                st.session_state.agreement_reached = True
+                st.session_state.agreed_salary = app_demand
+                st.success(f"🎉 Agreement reached at a salary of ₹{st.session_state.agreed_salary}!")
+                # Calculate payoffs
+                employer_value = st.session_state.user_max_budget * 1.2  # Assume employee brings 20% more value
+                st.session_state.payoffs['You'] = employer_value - st.session_state.agreed_salary
+                st.session_state.payoffs['Application'] = st.session_state.agreed_salary - st.session_state.app_min_salary
                 st.session_state.game_state = 'results'
+            else:
+                st.warning("No agreement reached this round.")
+                # Move to next round or end game
+                if st.session_state.round < st.session_state.max_rounds:
+                    st.session_state.round += 1
+                else:
+                    st.session_state.game_state = 'results'
+
+    else:
+        # User is Employee
+        st.subheader("Your Turn: Employee's Demand")
+        user_demand = st.number_input(
+            "Enter your salary demand to the Employer (₹):",
+            min_value=st.session_state.user_min_salary,
+            max_value=st.session_state.app_max_budget,
+            step=5000,
+            key=f'user_demand_round_{st.session_state.round}'
+        )
+
+        # Application (Employer) makes an offer
+        app_offer = random.randint(st.session_state.user_min_salary, st.session_state.app_max_budget)
+        st.write("Waiting for the Employer's offer...")
+
+        if st.button("Submit Demand"):
+            st.session_state.user_proposals.append(user_demand)
+            st.session_state.app_proposals.append(app_offer)
+            st.write(f"Employer (Application) offers: ₹{app_offer}")
+
+            # Check for agreement
+            if app_offer >= user_demand:
+                st.session_state.agreement_reached = True
+                st.session_state.agreed_salary = user_demand
+                st.success(f"🎉 Agreement reached at a salary of ₹{st.session_state.agreed_salary}!")
+                # Calculate payoffs
+                employer_value = st.session_state.app_max_budget * 1.2  # Assume employee brings 20% more value
+                st.session_state.payoffs['You'] = st.session_state.agreed_salary - st.session_state.user_min_salary
+                st.session_state.payoffs['Application'] = employer_value - st.session_state.agreed_salary
+                st.session_state.game_state = 'results'
+            else:
+                st.warning("No agreement reached this round.")
+                # Move to next round or end game
+                if st.session_state.round < st.session_state.max_rounds:
+                    st.session_state.round += 1
+                else:
+                    st.session_state.game_state = 'results'
 
 # Results Phase
 elif st.session_state.game_state == 'results':
     st.title("📈 Negotiation Results")
     if st.session_state.agreement_reached:
-        st.write(f"An agreement was reached at a salary of ₹{st.session_state.employee_demand[-1]}.")
+        st.write(f"An agreement was reached at a salary of ₹{st.session_state.agreed_salary}.")
 
         st.subheader("Payoffs")
-        st.write(f"**Employer's Payoff**: ₹{st.session_state.payoffs['Employer']}")
-        st.write(f"**Employee's Payoff**: ₹{st.session_state.payoffs['Employee']}")
+        st.write(f"**Your Payoff**: ₹{st.session_state.payoffs['You']}")
+        st.write(f"**Application's Payoff**: ₹{st.session_state.payoffs['Application']}")
     else:
         st.write("No agreement was reached after all negotiation rounds.")
         st.write("Both parties receive a payoff of **₹0**.")
@@ -122,8 +161,8 @@ elif st.session_state.game_state == 'results':
     st.subheader("Negotiation History")
     negotiation_data = {
         'Round': list(range(1, st.session_state.round + 1)),
-        'Employer Offer (₹)': st.session_state.employer_offer,
-        'Employee Demand (₹)': st.session_state.employee_demand
+        'Your Proposal (₹)': st.session_state.user_proposals,
+        "Application's Proposal (₹)": st.session_state.app_proposals
     }
     st.table(negotiation_data)
 
@@ -131,9 +170,13 @@ elif st.session_state.game_state == 'results':
     if st.button("Restart Game"):
         st.session_state.game_state = 'setup'
         st.session_state.round = 1
-        st.session_state.employer_budget = 0
-        st.session_state.employee_min_salary = 0
-        st.session_state.employer_offer = []
-        st.session_state.employee_demand = []
+        st.session_state.user_role = None
+        st.session_state.user_min_salary = 0
+        st.session_state.user_max_budget = 0
+        st.session_state.app_min_salary = 0
+        st.session_state.app_max_budget = 0
+        st.session_state.user_proposals = []
+        st.session_state.app_proposals = []
         st.session_state.agreement_reached = False
-        st.session_state.payoffs = {'Employer': 0, 'Employee': 0}
+        st.session_state.agreed_salary = 0
+        st.session_state.payoffs = {'You': 0, 'Application': 0}
